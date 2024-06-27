@@ -17,7 +17,7 @@ def pedir_valores(variables):
     for variable in variables:
         while True:
             valor = input(f'Ingrese el valor de {variable}: ')
-            if valor.upper() == 'T':
+            if valor.upper() == 'V':
                 valor = True
                 break
             elif valor.upper() == 'F':
@@ -54,7 +54,7 @@ def trasformar_expreciones(expreciones, local_dict):
 
 
 def calcular_local_disct(variables):
-    local_dict = {'And': And, 'Or': Or, 'Not': Not,
+    local_dict = {'And': And, 'Or': Or, 'Not': Not, 'F': False, 'V': True,
                   'Implies': Implies, 'Equivalent': Equivalent}
     for variable in variables:
         local_dict[str(variable)] = variable
@@ -78,7 +78,7 @@ def calcular():
     local_dict = calcular_local_disct(variables)
 
     exprecion = formato.procesar_proposicion(proposicion)
-    print(exprecion)
+    # print(exprecion)
 
     return proposicion, variables, local_dict, exprecion
 
@@ -87,9 +87,82 @@ def calcular():
 def evaluar_proposicion(expr, valores):
     return expr.subs(valores)
 
+
+def evaluar_proposicion_con_pasos(expreciones, valores, proposiciones, local_dict):
+    pasos = [proposiciones[-1]]
+    proposiciones_resultados = []
+    letras = list(valores.keys())
+
+    proposicion = proposiciones[-1]
+    for letra in letras:
+        valor = 'V' if str(valores[letra]) == 'True' else 'F'
+        proposicion = proposicion.replace(str(letra), valor)
+
+    pasos.append(proposicion)
+
+    paso_negativos = pasos[-1]
+    for i, proposicion in enumerate(proposiciones):
+        if '(' in proposicion:
+            break
+        else:
+            for letra in letras:
+                if str(letra) in proposicion:
+                    valor = 'V' if str(valores[letra]) == 'True' else 'F'
+                    proposicion2 = proposicion.replace(str(letra), str(valor))
+                    proposicion3 = formato.proposicion_calculable(proposicion)
+                    exprecion = trasformar_exprecion(proposicion3, local_dict)
+                    resultado = evaluar_proposicion(exprecion, valores)
+                    resultado = 'V' if str(resultado) == 'True' else 'F'
+                    paso_negativos = paso_negativos.replace(
+                        proposicion2, resultado)
+                    break
+
+    if paso_negativos != pasos[-1]:
+        pasos.append(paso_negativos)
+
+    for i, proposicion in enumerate(proposiciones):
+        paso = pasos[-1]
+        proposicion2 = proposicion
+
+        if i > 0:
+            lista_invert = []
+            for j, miniproposicion in enumerate(proposiciones):
+                if j >= i:
+                    break
+                lista_invert.append(miniproposicion)
+            lista_invert.reverse()
+            resultados_invert = proposiciones_resultados.copy()
+            resultados_invert.reverse()
+
+            for j, prop in enumerate(lista_invert):
+                if prop in proposicion2:
+                    proposicion2 = proposicion2.replace(
+                        prop, resultados_invert[j])
+
+        for letra in letras:
+            if str(letra) in proposicion2:
+                valor = 'V' if str(valores[letra]) == 'True' else 'F'
+                proposicion2 = proposicion2.replace(str(letra), str(valor))
+
+        proposicion3 = formato.proposicion_calculable(proposicion)
+        proposicion3 = formato.procesar_proposicion(proposicion3)
+        exprecion = trasformar_exprecion(proposicion3, local_dict)
+        resultado = evaluar_proposicion(exprecion, valores)
+        resultado = 'V' if str(resultado) == 'True' else 'F'
+
+        proposiciones_resultados.append(resultado)
+
+        paso = paso.replace(proposicion2, resultado)
+
+        if paso != pasos[-1]:
+            pasos.append(paso)
+
+    return pasos
+
 # Función para simplificar una expresión lógica
 def simplificar_proposicion(expr):
     return simplify(expr)
+
 
 
 def calcular_exprecion():
@@ -100,11 +173,22 @@ def calcular_exprecion():
     # Pedimos los valores de las variables
     valores = pedir_valores(variables)
 
-    resultado = evaluar_proposicion(exprecion, valores)
+    # Obtenemos las expreciones y proposiciones
+    expreciones, proposiciones = texto_exprecion(proposicion)
 
-    print(resultado)
+    # Convertir las cadenas de texto a una expresión de SymPy
+    expreciones_simpy = trasformar_expreciones(expreciones, local_dict)
 
-    return(resultado)
+    pasos = evaluar_proposicion_con_pasos(
+        expreciones_simpy, valores, proposiciones, local_dict)
+
+    pasos = formato.texto_centrado(pasos)
+
+    for paso in pasos:
+        print(paso)
+
+    return pasos
+
 
 def calcular_simplificacion():
     proposicion, variables, local_dict, exprecion = calcular()
@@ -116,6 +200,7 @@ def calcular_simplificacion():
     print(resultado)
 
     return resultado
+
 
 def calcular_tabla():
     proposicion, variables, local_dict, exprecion = calcular()
@@ -134,7 +219,8 @@ def calcular_tabla():
     tabla_verdad = []
 
     # Encabezado de la tabla
-    encabezado = [str(var) for var in variables] + [str(exprecion) for exprecion in expreciones_simpy]
+    encabezado = [str(var) for var in variables] + [str(exprecion)
+                                                    for exprecion in expreciones_simpy]
     tabla_verdad.append(encabezado)
 
     # Evaluar la expresión para cada combinación de valores de verdad
@@ -143,20 +229,19 @@ def calcular_tabla():
         # Crear un diccionario con las valores y combinaciones: { P:True, Q:False, ... }
         valores = dict(zip(variables, combinacion))
 
-        # Obtiene los resultados de la expresiones en base a los valores
-        resultados = [exprecion_simpy.subs(valores) for exprecion_simpy in expreciones_simpy]
+        # Obtiene el resultado de la expresion en base a los valores
+        resultados = [exprecion_simpy.subs(valores)
+                      for exprecion_simpy in expreciones_simpy]
 
-        # Crea una lista de las combinaciones mas los resultados: [ True, False ] + [ True ]
+        # Crea una lista de las combinaciones mas el resultado: [ True, False ] + [ True ]
         fila = list(combinacion) + resultados
 
         # Agrega la fila en la tabla.
         tabla_verdad.append(fila)
-    
+
     # Imprimir la tabla de verdad
     for fila in tabla_verdad:
         print("\t".join(map(str, fila)))
 
 
-
-
-
+calcular_exprecion()

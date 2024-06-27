@@ -124,7 +124,7 @@ def separar_proposicion(proposicion):
             lista.append(proposicion[i:i+2])
 
     for i, char in enumerate(proposicion2):
-        
+
         if char == '(':
             nivel += 1
             listaInicio.append(i+1)
@@ -157,6 +157,17 @@ def extraer_variables(proposicion):
 def pegar_letras(letras):
     letras = ' '.join(letras)
     return letras
+
+
+def texto_centrado(lista_texto):
+    cant_mayor = max(len(texto) for texto in lista_texto)
+
+    lista_nueva = []
+    for i, texto in enumerate(lista_texto):
+        diff = (cant_mayor - len(texto)) // 2
+        rellenar = ' ' * diff
+        lista_nueva.append(rellenar + texto)
+    return lista_nueva
 
 
 # proposicion = "(((P ∧ Q) ⇄ ((¬R ∧ (Q ∨ ¬P)) ⇾ ¬(P ∨ (R ∧ ¬Q)))))"
